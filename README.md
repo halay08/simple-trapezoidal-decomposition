@@ -1,4 +1,4 @@
-# Polygon Clipping
+# Simple Trapezoidal Decomposition
 
 [![Version Badge][npm-img]][npm-url]
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
