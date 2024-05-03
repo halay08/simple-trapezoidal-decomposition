@@ -1,14 +1,11 @@
 {
-  "name": "test2",
-  "version": "1.0.0",
-  "description": "",
+  "name": "polygon-clipping",
+  "version": "0.0.1",
+  "description": "This is to implement a solution for clipping a polygon based on its concave vertices",
   "main": "index.js",
   "type": "module",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "keywords": [],
-  "author": "",
+  "author": "Ken Le <dev@kenstack.io>",
   "license": "ISC",
   "dependencies": {
     "@turf/turf": "^6.5.0",
@@ -17,5 +14,12 @@
   },
   "devDependencies": {
     "prettier": "^3.2.5"
-  }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "bugs": {
+    "url": "https://github.com/halay08/polygon-clipping/issues"
+  },
+  "homepage": "https://github.com/halay08/polygon-clipping#readme"
 }
