@@ -1,7 +1,7 @@
 {
-  "name": "polygon-clipping",
+  "name": "simple-trapezoidal-decomposition",
   "version": "0.0.1",
-  "description": "This is to implement a solution for clipping a polygon based on its concave vertices",
+  "description": "This repository is to implement the Trapezoidal Decomposition solution based on the concave vertices of the polygon",
   "main": "index.js",
   "type": "module",
   "keywords": [],

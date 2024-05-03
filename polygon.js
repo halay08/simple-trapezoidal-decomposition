@@ -130,6 +130,25 @@ export function decomposeTrapezoidal(originalPolygon) {
           clippedPolygons.splice(index, 1)
         }
 
+        // Sort NS - EW
+        clippedPolygons = clippedPolygons
+          .map((item) => turf.polygon(item.coordinates).geometry)
+          .sort((a, b) => {
+            const aCoords = a.coordinates[0]
+            const bCoords = b.coordinates[0]
+
+            const aSouth = Math.min(...aCoords.map((coord) => coord[1]))
+            const bSouth = Math.min(...bCoords.map((coord) => coord[1]))
+
+            if (aSouth === bSouth) {
+              const aWest = Math.min(...aCoords.map((coord) => coord[0]))
+              const bWest = Math.min(...bCoords.map((coord) => coord[0]))
+              return aWest - bWest
+            }
+
+            return bSouth - aSouth
+          })
+
         acc.push(...clippedPolygons)
       }
     }

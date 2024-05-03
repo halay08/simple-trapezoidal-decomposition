@@ -6,7 +6,7 @@
 [npm-img]: https://img.shields.io/npm/v/@turf/turf.svg
 [npm-url]: https://www.npmjs.com/package/@turf/turf
 
-This repository aims to implement a solution for clipping a polygon based on its concave vertices. Let's consider a scenario where we have a polygon with two distinct concave vertices. Our objective is to clip the polygon using these concave vertices as reference points.
+This repository aims to implement the trapezoidal Decomposition Solution based on the concave vertices of the polygon. Let's consider a scenario where we have a polygon with two distinct concave vertices. Our objective is to clip the polygon using these concave vertices as reference points.
 
 I would like to express my gratitude to the [Turf.js](https://github.com/Turfjs/turf) team and [bjornharrtell](https://github.com/bjornharrtell/jsts) for their repositories and npm packages, which have greatly assisted me in building this solution.
 
