@@ -1,0 +1,21 @@
+{
+  "name": "test2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@turf/turf": "^6.5.0",
+    "jsts": "^2.11.1",
+    "polygon-clipping": "^0.15.7"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  }
+}
