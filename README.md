@@ -8,7 +8,7 @@
 
 This repository aims to implement the trapezoidal Decomposition Solution based on the concave vertices of the polygon. Let's consider a scenario where we have a polygon with two distinct concave vertices. Our objective is to clip the polygon using these concave vertices as reference points.
 
-I would like to express my gratitude to the [Turf.js](https://github.com/Turfjs/turf) team and [bjornharrtell](https://github.com/bjornharrtell/jsts) for their repositories and npm packages, which have greatly assisted me in building this solution.
+I would like to express my gratitude to the [Turf.js](https://github.com/Turfjs/turf) team for their repositories and npm packages, which have greatly assisted me in building this solution.
 
 ![Demo](./assets/img/demo.png)
 
@@ -45,6 +45,6 @@ const polygon = turf.polygon([
 ```js
 const clippedPolygons = decomposeTrapezoidal(polygon.geometry)
 clippedPolygons.map((item, index) => {
-  console.log(`Polygon ${index}:`, item.coordinates)
+  console.log(`Polygon ${index + 1}:`, item.geometry.coordinates[0])
 })
 ```

@@ -1,39 +1,5 @@
-import GeoJSONReader from 'jsts/org/locationtech/jts/io/GeoJSONReader.js'
-import GeoJSONWriter from 'jsts/org/locationtech/jts/io/GeoJSONWriter.js'
-import Polygonizer from 'jsts/org/locationtech/jts/operation/polygonize/Polygonizer.js'
-import RelateOp from 'jsts/org/locationtech/jts/operation/relate/RelateOp.js'
-import 'jsts/org/locationtech/jts/monkey.js'
 import * as turf from '@turf/turf'
-
-export function clipPolygon(polygonGeoJSON, lineGeoJSON) {
-  // Create a GeoJSON reader and writer
-  const reader = new GeoJSONReader()
-  const writer = new GeoJSONWriter()
-
-  // Convert GeoJSON objects to JSTS geometries
-  const polygon = reader.read(polygonGeoJSON)
-  const line = reader.read(lineGeoJSON)
-
-  // Compute a union of the polygon boundary and the line
-  const nodedLinework = polygon.getBoundary().union(line)
-
-  // Perform polygonization of the unioned geometry
-  const polygonizer = new Polygonizer()
-  polygonizer.add(nodedLinework)
-
-  // Extract the resulting polygons
-  const resultPolygons = polygonizer.getPolygons()
-  const clippedPolygons = []
-  for (const poly of resultPolygons) {
-    const polyGeoJSON = writer.write(poly)
-    // Ensure the new polygon is actually inside the original polygon
-    if (RelateOp.overlaps(polygon, poly) || RelateOp.contains(polygon, poly)) {
-      clippedPolygons.push(polyGeoJSON)
-    }
-  }
-
-  return clippedPolygons
-}
+import * as polygonSlice from './polygon-slice.js'
 
 /**
  * Get coordinates of the polygon.
@@ -45,24 +11,45 @@ export function clipPolygon(polygonGeoJSON, lineGeoJSON) {
  * @returns Position[]
  */
 function getPolygonCoordinates(polygon) {
-  const [coordinates] = polygon?.coordinates || []
+  const [coordinates] = polygon?.geometry?.coordinates || []
   return coordinates || []
+}
+
+function sortClippedPolygons(polygons) {
+  return polygons?.sort((a, b) => {
+    const aCoords = a.geometry.coordinates[0]
+    const bCoords = b.geometry.coordinates[0]
+
+    const aSouth = Math.min(...aCoords.map((coord) => coord[1]))
+    const bSouth = Math.min(...bCoords.map((coord) => coord[1]))
+
+    if (aSouth === bSouth) {
+      const aWest = Math.min(...aCoords.map((coord) => coord[0]))
+      const bWest = Math.min(...bCoords.map((coord) => coord[0]))
+      return aWest - bWest
+    }
+
+    return bSouth - aSouth
+  })
 }
 
 // Function to generate vertical lines from a given vertex
 function getPolygonVertexVerticalLine(vertex) {
-  const [x] = vertex
-  // Define a large number for extending lines far enough
-  const maxY = 1e9,
-    minY = -1e9
+  const [x, y] = vertex
 
-  // Create upward and downward line using turf.lineString
+  const reasonableExtent = 0.05
   const verticalLine = turf.lineString([
-    [x, minY],
-    [x, maxY],
+    [x, y - reasonableExtent],
+    [x, y + reasonableExtent],
   ])
 
-  return verticalLine
+  const centroid = turf.centroid(verticalLine)
+  // Specify the angle of rotation in degrees and the rotation options
+  const angle = 90 // Rotate by 45 degrees, modify as needed
+  const options = { pivot: centroid.geometry.coordinates }
+
+  // Rotate the lineString around its centroid
+  return turf.transformRotate(verticalLine, angle, options)
 }
 
 export function getOnlyConcaveVerticesCoordinates(polygon) {
@@ -86,68 +73,60 @@ export function decomposeTrapezoidal(originalPolygon) {
   const sortedPoints = points.slice().sort((a, b) => a[0] - b[0])
 
   // Process each point in the event queue
-  const lines = sortedPoints.map((vertex) => {
+  let lines = sortedPoints.map((vertex) => {
     // For each vertex, extend vertical lines until they hit another edge
     return getPolygonVertexVerticalLine(vertex)
   })
 
-  let polygonGeoJSON = {
-    type: 'Polygon',
-    coordinates: [getPolygonCoordinates(originalPolygon)],
+  for (let i = 0; i < lines.length - 1; i++) {
+    const overlap = turf.lineOverlap(lines[i], lines[i + 1], { tolerance: 0.0005 })
+    if (overlap.features.length > 0) {
+      lines.splice(i, 1)
+    }
   }
 
-  return lines.reduce((acc, line) => {
-    if (polygonGeoJSON?.coordinates?.length) {
-      const lineGeoJSON = {
-        type: 'LineString',
-        coordinates: line.geometry.coordinates,
-      }
-      let clippedPolygons = clipPolygon(polygonGeoJSON, lineGeoJSON)
+  // lines = [lines[0]]
 
-      if (clippedPolygons?.length) {
-        clippedPolygons = clippedPolygons.reduce((acc, curClipped) => {
-          const centroid = turf.centroid(turf.polygon(curClipped.coordinates))
-          const isInside = turf.booleanPointInPolygon(centroid, originalPolygon, {
-            ignoreBoundary: true,
-          })
-          if (isInside) {
-            acc.push(curClipped)
+  let clippingPolygonInput = turf.clone(originalPolygon)
+
+  const finalClippedPolygons = lines.reduce((acc, line) => {
+    if (clippingPolygonInput?.geometry?.coordinates?.length) {
+      const result = polygonSlice.polygonSlice(clippingPolygonInput, line)
+      if (result?.features?.length) {
+        // Sort NS - EW
+        const clippedPolygons = sortClippedPolygons(result?.features).reduce((acc, cur) => {
+          // Check the polygon is duplicate
+          const prev = acc[acc.length - 1]
+          if (prev) {
+            const centroidCur = turf.centroid(cur.geometry)
+            const centroidPrev = turf.centroid(prev.geometry)
+            const distance = turf.distance(centroidCur, centroidPrev, { units: 'meters' })
+            if (Math.round(distance) > 1) {
+              acc.push(cur)
+            }
+          } else {
+            acc.push(cur)
           }
+
           return acc
         }, [])
 
         // Get convex polygon from clippedPolygons.
         const index = clippedPolygons.findIndex((item) => {
-          const coords = getOnlyConcaveVerticesCoordinates(item)
-          return coords.length > 0
+          // Calculate the convex hull of the polygon
+          const convexHull = turf.convex(item)
+
+          // Compare the convex hull with the original polygon to check for concavity
+          const isConvex = turf.booleanEqual(convexHull, item)
+
+          // If it's not convex, it's concave
+          return !isConvex
         })
 
         if (index >= 0) {
-          polygonGeoJSON = {
-            type: 'Polygon',
-            coordinates: [getPolygonCoordinates(clippedPolygons[index])],
-          }
+          clippingPolygonInput = clippedPolygons[index]
           clippedPolygons.splice(index, 1)
         }
-
-        // Sort NS - EW
-        clippedPolygons = clippedPolygons
-          .map((item) => turf.polygon(item.coordinates).geometry)
-          .sort((a, b) => {
-            const aCoords = a.coordinates[0]
-            const bCoords = b.coordinates[0]
-
-            const aSouth = Math.min(...aCoords.map((coord) => coord[1]))
-            const bSouth = Math.min(...bCoords.map((coord) => coord[1]))
-
-            if (aSouth === bSouth) {
-              const aWest = Math.min(...aCoords.map((coord) => coord[0]))
-              const bWest = Math.min(...bCoords.map((coord) => coord[0]))
-              return aWest - bWest
-            }
-
-            return bSouth - aSouth
-          })
 
         acc.push(...clippedPolygons)
       }
@@ -155,4 +134,6 @@ export function decomposeTrapezoidal(originalPolygon) {
 
     return acc
   }, [])
+
+  return sortClippedPolygons(finalClippedPolygons)
 }

@@ -1,5 +1,7 @@
 import { decomposeTrapezoidal } from './polygon.js'
 import * as turf from '@turf/turf'
+import polygonClipping from 'polygon-clipping'
+import * as polygonSlice from './polygon-slice.js'
 
 // Define the polygon and line in GeoJSON format
 const polygon = turf.polygon([
@@ -17,7 +19,9 @@ const polygon = turf.polygon([
   ],
 ])
 
-const clippedPolygons = decomposeTrapezoidal(polygon.geometry)
-clippedPolygons.map((item, index) => {
-  console.log(`Polygon ${index}:`, item.coordinates)
-})
+const clippedPolygons = decomposeTrapezoidal(polygon)
+console.log(
+  clippedPolygons.map((item, index) => {
+    console.log(`Polygon ${index + 1}:`, item.geometry.coordinates[0])
+  }),
+)
