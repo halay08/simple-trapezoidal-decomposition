@@ -34,7 +34,7 @@ function sortClippedPolygons(polygons) {
 }
 
 // Function to generate vertical lines from a given vertex
-function getPolygonVertexVerticalLine(vertex) {
+function getPolygonVertexVerticalLine(vertex, angle = 0) {
   const [x, y] = vertex
 
   const reasonableExtent = 0.05
@@ -45,7 +45,6 @@ function getPolygonVertexVerticalLine(vertex) {
 
   const centroid = turf.centroid(verticalLine)
   // Specify the angle of rotation in degrees and the rotation options
-  const angle = 90 // Rotate by 45 degrees, modify as needed
   const options = { pivot: centroid.geometry.coordinates }
 
   // Rotate the lineString around its centroid
@@ -65,7 +64,7 @@ export function getOnlyConcaveVerticesCoordinates(polygon) {
 }
 
 // Function to perform trapezoidal decomposition
-export function decomposeTrapezoidal(originalPolygon) {
+export function decomposeTrapezoidal(originalPolygon, angle = 0) {
   // Extract coordinates and prepare event queue (vertices of the originalPolygon)
   const points = getOnlyConcaveVerticesCoordinates(originalPolygon)
 
@@ -75,7 +74,7 @@ export function decomposeTrapezoidal(originalPolygon) {
   // Process each point in the event queue
   let lines = sortedPoints.map((vertex) => {
     // For each vertex, extend vertical lines until they hit another edge
-    return getPolygonVertexVerticalLine(vertex)
+    return getPolygonVertexVerticalLine(vertex, angle)
   })
 
   for (let i = 0; i < lines.length - 1; i++) {

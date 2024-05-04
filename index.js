@@ -19,7 +19,8 @@ const polygon = turf.polygon([
   ],
 ])
 
-const clippedPolygons = decomposeTrapezoidal(polygon)
+// Clip the polygons by angle of 45 degrees.
+const clippedPolygons = decomposeTrapezoidal(polygon, 45)
 console.log(
   clippedPolygons.map((item, index) => {
     console.log(`Polygon ${index + 1}:`, item.geometry.coordinates[0])
