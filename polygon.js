@@ -74,7 +74,7 @@ export function decomposeTrapezoidal(originalPolygon, angle = 0) {
   // Process each point in the event queue
   let lines = sortedPoints.map((vertex) => {
     // For each vertex, extend vertical lines until they hit another edge
-    return getPolygonVertexVerticalLine(vertex, angle)
+    return getPolygonVertexVerticalLine(vertex, angle % 180)
   })
 
   for (let i = 0; i < lines.length - 1; i++) {
@@ -84,11 +84,9 @@ export function decomposeTrapezoidal(originalPolygon, angle = 0) {
     }
   }
 
-  // lines = [lines[0]]
-
   let clippingPolygonInput = turf.clone(originalPolygon)
 
-  const finalClippedPolygons = lines.reduce((acc, line) => {
+  const finalClippedPolygons = lines.reduce((acc, line, lineIndex) => {
     if (clippingPolygonInput?.geometry?.coordinates?.length) {
       const result = polygonSlice.polygonSlice(clippingPolygonInput, line)
       if (result?.features?.length) {
@@ -110,21 +108,37 @@ export function decomposeTrapezoidal(originalPolygon, angle = 0) {
           return acc
         }, [])
 
-        // Get convex polygon from clippedPolygons.
-        const index = clippedPolygons.findIndex((item) => {
-          // Calculate the convex hull of the polygon
-          const convexHull = turf.convex(item)
+        const isConvexPolygon = (arr = []) => {
+          const { length } = arr
+          let pre = 0,
+            curr = 0
+          for (let i = 0; i < length; ++i) {
+            let dx1 = arr[(i + 1) % length][0] - arr[i][0]
+            let dx2 = arr[(i + 2) % length][0] - arr[(i + 1) % length][0]
+            let dy1 = arr[(i + 1) % length][1] - arr[i][1]
+            let dy2 = arr[(i + 2) % length][1] - arr[(i + 1) % length][1]
+            curr = dx1 * dy2 - dx2 * dy1
+            if (curr != 0) {
+              if ((curr > 0 && pre < 0) || (curr < 0 && pre > 0)) return false
+              else pre = curr
+            }
+          }
+          return true
+        }
 
-          // Compare the convex hull with the original polygon to check for concavity
-          const isConvex = turf.booleanEqual(convexHull, item)
+        if (lineIndex < lines.length - 1) {
+          // Get convex polygon from clippedPolygons.
+          const index = clippedPolygons.findIndex((item) => {
+            // Compare the convex hull with the original polygon to check for concavity
+            const isConvex = isConvexPolygon(item.geometry.coordinates[0])
+            // If it's not convex, it's concave
+            return !isConvex
+          })
 
-          // If it's not convex, it's concave
-          return !isConvex
-        })
-
-        if (index >= 0) {
-          clippingPolygonInput = clippedPolygons[index]
-          clippedPolygons.splice(index, 1)
+          if (index >= 0) {
+            clippingPolygonInput = clippedPolygons[index]
+            clippedPolygons.splice(index, 1)
+          }
         }
 
         acc.push(...clippedPolygons)

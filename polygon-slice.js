@@ -53,40 +53,32 @@ export function polygonSlice(poly, splitter) {
   if (line == null) {
     return featureCollection(poly)
   }
-  var newPolygons = []
-  var cutDone = false
-  var upperCut = cutPolygon(poly, line, 1, 'upper')
-  var lowerCut = cutPolygon(poly, line, -1, 'lower')
 
-  if (upperCut != null && lowerCut != null) {
-    cutDone = true
-  }
-  if (cutDone) {
-    newPolygons.push(upperCut.geometry)
-    newPolygons.push(lowerCut.geometry)
-  } else {
-    newPolygons.push(poly)
+  var feature = cutPolygon(poly, line)
+
+  if (!feature) {
+    feature = poly
   }
   let generatedPolygons = []
-  newPolygons.forEach((polyg) => {
-    if (polyg.type == 'Polygon') {
-      generatedPolygons.push(polyg)
-    }
-    if (polyg.type == 'MultiPolygon') {
-      polyg.coordinates.forEach((p) => {
-        generatedPolygons.push(polygon([p[0]]).geometry)
-      })
-    }
-  })
+
+  if (feature.geometry.type == 'Polygon') {
+    generatedPolygons.push(feature)
+  }
+  if (feature.geometry.type == 'MultiPolygon') {
+    feature.geometry.coordinates.forEach((p) => {
+      generatedPolygons.push(polygon([p[0]]).geometry)
+    })
+  }
+
   return featureCollection(generatedPolygons.map((p) => polygon(p.coordinates)))
 }
-function cutPolygon(poly, line, direction, id) {
+function cutPolygon(poly, line) {
   var j
   var cutPolyGeoms = []
   var retVal = null
   if (poly.type != 'Polygon' || line.type != 'LineString') return retVal
 
-  var thickLinePolygon = prepareDiffLinePolygon(line, direction)
+  var thickLinePolygon = prepareDiffLinePolygon(line)
   var clipped
   try {
     clipped = difference(poly, thickLinePolygon)
@@ -98,22 +90,17 @@ function cutPolygon(poly, line, direction, id) {
     for (j = 0; j < clipped.geometry.coordinates.length; j++) {
       //@ts-ignore
       var polyg = polygon(clipped.geometry.coordinates[j])
-      var overlap = lineOverlap(polyg, line, { tolerance: 0.01 })
-      if (overlap.features.length > 0) {
-        cutPolyGeoms.push(polyg.geometry.coordinates)
-      }
+      cutPolyGeoms.push(polyg.geometry.coordinates)
     }
   } else {
     var polyg = polygon(clipped.geometry.coordinates)
-    var overlap = lineOverlap(polyg, line)
-    if (overlap.features.length > 0) {
-      cutPolyGeoms.push(polyg.geometry.coordinates, { tolerance: 0.01 })
-    }
+    cutPolyGeoms.push(polyg.geometry.coordinates)
   }
+
   if (cutPolyGeoms.length == 1) {
-    retVal = polygon(cutPolyGeoms[0], { id: id })
+    retVal = polygon(cutPolyGeoms[0])
   } else if (cutPolyGeoms.length > 1) {
-    retVal = multiPolygon(cutPolyGeoms, { id: id })
+    retVal = multiPolygon(cutPolyGeoms)
   }
 
   return retVal
@@ -122,35 +109,26 @@ function cutPolygon(poly, line, direction, id) {
  * return non self intersection polygon
  * for difference-cutting
  */
-function prepareDiffLinePolygon(line, direction) {
-  let j,
-    k,
-    offsetLine,
-    polyCoords = [],
-    thickLinePolygon
-  const offsetScales = [0.001, 0.0001, 0.00001]
-  for (j = 0; j < offsetScales.length; j++) {
-    polyCoords = []
-    offsetLine = lineOffset(line, offsetScales[j] * direction, {
-      units: 'kilometers',
-    })
-    for (k = 0; k < line.coordinates.length; k++) {
-      polyCoords.push(line.coordinates[k])
-    }
-    for (k = offsetLine.geometry.coordinates.length - 1; k >= 0; k--) {
-      polyCoords.push(offsetLine.geometry.coordinates[k])
-    }
-    polyCoords.push(line.coordinates[0])
-    let thickLineString = lineString(polyCoords)
-    thickLinePolygon = lineToPolygon(thickLineString)
-    let result = unkinkPolygon(thickLinePolygon)
-    let selfIntersectPolygons = result.features.length
-    if (selfIntersectPolygons == 1) {
-      return thickLinePolygon
-    }
+function prepareDiffLinePolygon(line) {
+  const offsetScale = 0.8
+
+  let polyCoords = []
+  let offsetLine = lineOffset(line, -offsetScale, {
+    units: 'millimeters',
+  })
+
+  polyCoords.push(...offsetLine.geometry.coordinates)
+
+  offsetLine = lineOffset(line, offsetScale, {
+    units: 'millimeters',
+  })
+  for (let k = offsetLine.geometry.coordinates.length - 1; k >= 0; k--) {
+    polyCoords.push(offsetLine.geometry.coordinates[k])
   }
-  //finaly
-  return thickLinePolygon
+
+  polyCoords.push(polyCoords[0])
+
+  return polygon([polyCoords])
 }
 /**
  * Prepare linestrings from polygon-cut

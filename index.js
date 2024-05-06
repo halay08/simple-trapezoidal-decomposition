@@ -1,28 +1,21 @@
 import { decomposeTrapezoidal } from './polygon.js'
 import * as turf from '@turf/turf'
-import polygonClipping from 'polygon-clipping'
-import * as polygonSlice from './polygon-slice.js'
 
 // Define the polygon and line in GeoJSON format
 const polygon = turf.polygon([
   [
-    [108.23395054626502, 16.0537489390081],
-    [108.2439946871461, 16.053220021110302],
-    [108.24397211513453, 16.04755092267483],
-    [108.24023478761109, 16.044779535015692],
-    [108.23113721082224, 16.04510126406594],
-    [108.23015732274641, 16.047923935455735],
-    [108.23680536240724, 16.047633352735318],
-    [108.22913495559953, 16.05124428903199],
-    [108.2393318041216, 16.050053789755317],
-    [108.23395054626502, 16.0537489390081],
+    [117.86401460111085, -32.75564091134756],
+    [117.8460687490761, -32.75496491216645],
+    [117.8563587824273, -32.75161621866625],
+    [117.85323640717223, -32.74576685268078],
+    [117.86634316893021, -32.7450300552656],
+    [117.86093110198583, -32.75060740732039],
+    [117.86401460111085, -32.75564091134756],
   ],
 ])
 
 // Clip the polygons by angle of 45 degrees.
-const clippedPolygons = decomposeTrapezoidal(polygon, 45)
-console.log(
-  clippedPolygons.map((item, index) => {
-    console.log(`Polygon ${index + 1}:`, item.geometry.coordinates[0])
-  }),
-)
+const clippedPolygons = decomposeTrapezoidal(polygon, 1)
+clippedPolygons.map((item, index) => {
+  console.log(`Polygon ${index + 1}:`, item.geometry.coordinates[0])
+})
