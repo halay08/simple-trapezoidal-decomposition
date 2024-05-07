@@ -8,7 +8,9 @@
   "author": "Ken Le <dev@kenstack.io>",
   "license": "ISC",
   "dependencies": {
-    "@turf/turf": "^6.5.0"
+    "@turf/boolean-concave": "^6.5.0",
+    "@turf/turf": "^6.5.0",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "prettier": "^3.2.5"

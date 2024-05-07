@@ -62,7 +62,7 @@ export function polygonSlice(poly, splitter) {
   let generatedPolygons = []
 
   if (feature.geometry.type == 'Polygon') {
-    generatedPolygons.push(feature)
+    generatedPolygons.push(feature.geometry)
   }
   if (feature.geometry.type == 'MultiPolygon') {
     feature.geometry.coordinates.forEach((p) => {
@@ -114,13 +114,13 @@ function prepareDiffLinePolygon(line) {
 
   let polyCoords = []
   let offsetLine = lineOffset(line, -offsetScale, {
-    units: 'millimeters',
+    units: 'meters',
   })
 
   polyCoords.push(...offsetLine.geometry.coordinates)
 
   offsetLine = lineOffset(line, offsetScale, {
-    units: 'millimeters',
+    units: 'meters',
   })
   for (let k = offsetLine.geometry.coordinates.length - 1; k >= 0; k--) {
     polyCoords.push(offsetLine.geometry.coordinates[k])

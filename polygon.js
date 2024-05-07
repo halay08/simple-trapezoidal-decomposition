@@ -1,4 +1,6 @@
 import * as turf from '@turf/turf'
+import lodash from 'lodash'
+import booleanConcave from '@turf/boolean-concave'
 import * as polygonSlice from './polygon-slice.js'
 
 /**
@@ -84,68 +86,60 @@ export function decomposeTrapezoidal(originalPolygon, angle = 0) {
     }
   }
 
-  let clippingPolygonInput = turf.clone(originalPolygon)
+  let currentInputPolygons = [turf.clone(originalPolygon)]
 
-  const finalClippedPolygons = lines.reduce((acc, line, lineIndex) => {
-    if (clippingPolygonInput?.geometry?.coordinates?.length) {
-      const result = polygonSlice.polygonSlice(clippingPolygonInput, line)
-      if (result?.features?.length) {
-        // Sort NS - EW
-        const clippedPolygons = sortClippedPolygons(result?.features).reduce((acc, cur) => {
-          // Check the polygon is duplicate
-          const prev = acc[acc.length - 1]
-          if (prev) {
-            const centroidCur = turf.centroid(cur.geometry)
-            const centroidPrev = turf.centroid(prev.geometry)
-            const distance = turf.distance(centroidCur, centroidPrev, { units: 'meters' })
-            if (Math.round(distance) > 1) {
+  const finalClippedPolygons = lines.reduce((accumulator, line, lineIndex) => {
+    let nextInputPolygons = []
+    for (const currentInputPolygon of currentInputPolygons) {
+      if (currentInputPolygon?.geometry?.coordinates?.length) {
+        const result = polygonSlice.polygonSlice(currentInputPolygon, line)
+        if (result?.features?.length) {
+          // Sort NS - EW
+          const clippedPolygons = sortClippedPolygons(result?.features).reduce((acc, cur) => {
+            // Check the polygon is duplicate
+            const prev = acc[acc.length - 1]
+            if (prev) {
+              const centroidCur = turf.centroid(cur.geometry)
+              const centroidPrev = turf.centroid(prev.geometry)
+              const distance = turf.distance(centroidCur, centroidPrev, { units: 'meters' })
+              if (Math.round(distance) > 1) {
+                acc.push(cur)
+              }
+            } else {
               acc.push(cur)
             }
-          } else {
-            acc.push(cur)
+
+            return acc
+          }, [])
+
+          let diffPolygons = clippedPolygons
+          if (lineIndex < lines.length - 1) {
+            // Get convex polygon from clippedPolygons.
+            const concavePolygons = clippedPolygons.filter((item) => {
+              // Compare the convex hull with the original polygon to check for concavity
+              return booleanConcave(item.geometry)
+            })
+            diffPolygons = lodash.difference(clippedPolygons, concavePolygons)
+            nextInputPolygons.push(...concavePolygons)
           }
 
-          return acc
-        }, [])
+          console.log(
+            'diffPolygons',
+            diffPolygons.map((p) => p.geometry.coordinates[0]),
+          )
+          console.log(
+            'nextInputPolygons',
+            nextInputPolygons.map((p) => p.geometry.coordinates[0]),
+          )
 
-        const isConvexPolygon = (arr = []) => {
-          const { length } = arr
-          let pre = 0,
-            curr = 0
-          for (let i = 0; i < length; ++i) {
-            let dx1 = arr[(i + 1) % length][0] - arr[i][0]
-            let dx2 = arr[(i + 2) % length][0] - arr[(i + 1) % length][0]
-            let dy1 = arr[(i + 1) % length][1] - arr[i][1]
-            let dy2 = arr[(i + 2) % length][1] - arr[(i + 1) % length][1]
-            curr = dx1 * dy2 - dx2 * dy1
-            if (curr != 0) {
-              if ((curr > 0 && pre < 0) || (curr < 0 && pre > 0)) return false
-              else pre = curr
-            }
-          }
-          return true
+          accumulator.push(...diffPolygons)
         }
-
-        if (lineIndex < lines.length - 1) {
-          // Get convex polygon from clippedPolygons.
-          const index = clippedPolygons.findIndex((item) => {
-            // Compare the convex hull with the original polygon to check for concavity
-            const isConvex = isConvexPolygon(item.geometry.coordinates[0])
-            // If it's not convex, it's concave
-            return !isConvex
-          })
-
-          if (index >= 0) {
-            clippingPolygonInput = clippedPolygons[index]
-            clippedPolygons.splice(index, 1)
-          }
-        }
-
-        acc.push(...clippedPolygons)
       }
     }
 
-    return acc
+    currentInputPolygons = nextInputPolygons
+
+    return accumulator
   }, [])
 
   return sortClippedPolygons(finalClippedPolygons)
